@@ -41,6 +41,16 @@
     ],
     "host_permissions": [
       "https://*/*"
+    ],
+    "web_accessible_resources": [
+      {
+        "resources": [
+          "injected.js"
+        ],
+        "matches": [
+          "https://*/*"
+        ]
+      }
     ]
   }
 }
