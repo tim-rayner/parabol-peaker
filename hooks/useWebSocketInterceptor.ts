@@ -46,8 +46,6 @@ export const useWebSocketInterceptor = () => {
 
             // Only intercept Parabol WebSocket connections
             if (url.includes("action.parabol.co")) {
-              console.log("🔍 Parabol WebSocket intercepted:", url)
-
               // Store original methods
               const originalSend = ws.send
               const originalAddEventListener = ws.addEventListener
@@ -68,7 +66,6 @@ export const useWebSocketInterceptor = () => {
                 messageQueue.push(message)
                 processQueue()
 
-                console.log("📤 Outgoing WebSocket message:", message)
                 return originalSend.call(this, data)
               }
 
@@ -91,7 +88,6 @@ export const useWebSocketInterceptor = () => {
                     messageQueue.push(message)
                     processQueue()
 
-                    console.log("📥 Incoming WebSocket message:", message)
                     return listener.call(this, event)
                   }
 
@@ -127,13 +123,10 @@ export const useWebSocketInterceptor = () => {
               ]
             }
           })
-
-          console.log("🔧 WebSocket interceptor injected successfully")
         }
       })
 
       setIsIntercepting(true)
-      console.log("✅ WebSocket interceptor activated")
     } catch (error) {
       console.error("❌ Failed to inject WebSocket interceptor:", error)
     }

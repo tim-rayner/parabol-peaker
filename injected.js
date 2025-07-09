@@ -22,7 +22,6 @@
         data: typeof data === "string" ? data : "[Binary data]",
         url: this.url
       }
-      console.log("📤 Outgoing WS message:", message)
     }
     return originalSend.call(this, data)
   }
@@ -47,7 +46,6 @@
           }
           messageQueue.push(message)
           processQueue()
-          console.log("📥 Incoming WS message (prototype):", message)
         }
         return listener.call(this, event)
       }
@@ -73,10 +71,6 @@
             }
             messageQueue.push(message)
             processQueue()
-            console.log(
-              "📥 Incoming WS message (onmessage prototype):",
-              message
-            )
           }
           return value.call(this, event)
         }
@@ -87,6 +81,4 @@
     },
     configurable: true
   })
-
-  console.log("🔧 Global WebSocket prototype patched successfully (filtered)")
 })()

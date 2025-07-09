@@ -25,8 +25,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       interceptedMessages.splice(0, interceptedMessages.length - 1000)
     }
 
-    console.log("📊 Background received WebSocket message:", wsMessage)
-
     // Send response to acknowledge receipt
     sendResponse({ success: true })
   }

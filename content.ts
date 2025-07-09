@@ -1,19 +1,11 @@
 // Content script for Parabol Peaker
 // This script runs in the context of web pages
 
-console.log("Parabol Peaker content script loaded")
-
 // Function to inject WebSocket interceptor into page context
 const injectWebSocketInterceptor = () => {
   // Create script element to inject external file
   const script = document.createElement("script")
   script.src = chrome.runtime.getURL("injected.js")
-  script.onload = () => {
-    console.log("✅ WebSocket interceptor script loaded successfully")
-  }
-  script.onerror = (error) => {
-    console.error("❌ Failed to load WebSocket interceptor script:", error)
-  }
 
   // Inject script at the beginning of the document
   if (document.head) {
@@ -39,8 +31,6 @@ const injectWebSocketInterceptor = () => {
 // Listen for intercepted WebSocket messages from the page context
 const handleWebSocketMessage = (event: MessageEvent) => {
   if (event.data?.type === "WEBSOCKET_INTERCEPT") {
-    console.log("📊 Intercepted WebSocket message:", event.data.payload)
-
     // Send message to background script for processing
     if (typeof chrome !== "undefined" && chrome.runtime?.id) {
       chrome.runtime
