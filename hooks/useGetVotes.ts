@@ -1,107 +1,79 @@
-import { useMemo } from "react"
+import { useCallback, useEffect, useState } from "react"
 
-import {
-  useBackgroundMessages,
-  type WebSocketMessage
-} from "./useBackgroundMessages"
-
-export interface VoteData {
-  userId: string
-  vote: string
-  timestamp: number
-  meetingId: string
-}
+import type { FullVoteMessage, Vote } from "~schemas/vote"
 
 export const useGetVotes = () => {
-  const { messages } = useBackgroundMessages()
+  const [votes, setVotes] = useState<Vote[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const votes = useMemo(() => {
-    const voteData: VoteData[] = []
+  const fetchVotes = useCallback(async () => {
+    if (typeof chrome === "undefined" || !chrome.runtime?.id) {
+      console.warn("Extension context not available")
+      return
+    }
 
-    messages.forEach((message: WebSocketMessage) => {
-      try {
-        // Parse message data
-        const data =
-          typeof message.data === "string"
-            ? JSON.parse(message.data)
-            : message.data
+    setIsLoading(true)
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "GET_MESSAGES"
+      })
 
-        // Look for voting-related messages
-        if (data?.payload?.type === "Vote" || data?.payload?.type === "vote") {
-          const payload = data.payload
+      if (response?.messages) {
+        const validVotes: Vote[] = []
 
-          if (payload.userId && payload.vote !== undefined) {
-            voteData.push({
-              userId: payload.userId,
-              vote: payload.vote,
-              timestamp: message.timestamp,
-              meetingId: payload.meetingId || "unknown"
+        for (const msg of response.messages) {
+          try {
+            const parsedData = JSON.parse(msg.data) as FullVoteMessage
+
+            // Push combined metadata and parsed data
+            validVotes.push({
+              id: msg.id,
+              timestamp: msg.timestamp,
+              type: msg.type,
+              url: msg.url,
+              data: parsedData
             })
+          } catch (error) {
+            console.warn("Skipping invalid vote message:", error)
           }
         }
 
-        // Also check for GraphQL subscription messages that might contain vote data
-        if (data?.type === "data" && data?.payload?.data?.vote) {
-          const votePayload = data.payload.data.vote
-
-          if (votePayload.userId && votePayload.vote !== undefined) {
-            voteData.push({
-              userId: votePayload.userId,
-              vote: votePayload.vote,
-              timestamp: message.timestamp,
-              meetingId: votePayload.meetingId || "unknown"
-            })
-          }
-        }
-      } catch (error) {
-        // Silently ignore parsing errors
-        console.debug("Failed to parse message for vote data:", error)
+        setVotes(validVotes)
       }
-    })
+    } catch (error) {
+      console.error("Failed to fetch votes:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
-    return voteData
-  }, [messages])
+  const clearVotes = useCallback(async () => {
+    if (typeof chrome === "undefined" || !chrome.runtime?.id) {
+      console.warn("Extension context not available")
+      return
+    }
 
-  const getVotesByUser = (userId: string) => {
-    return votes.filter((vote) => vote.userId === userId)
-  }
+    try {
+      await chrome.runtime.sendMessage({ type: "CLEAR_MESSAGES" })
+      setVotes([])
+    } catch (error) {
+      console.error("Failed to clear votes:", error)
+    }
+  }, [])
 
-  const getLatestVotes = () => {
-    // Group by user and get the latest vote for each
-    const latestVotes = new Map<string, VoteData>()
+  useEffect(() => {
+    fetchVotes()
+  }, [fetchVotes])
 
-    votes.forEach((vote) => {
-      const existing = latestVotes.get(vote.userId)
-      if (!existing || vote.timestamp > existing.timestamp) {
-        latestVotes.set(vote.userId, vote)
-      }
-    })
-
-    return Array.from(latestVotes.values())
-  }
-
-  const getVoteSummary = () => {
-    const latestVotes = getLatestVotes()
-    const voteCounts = new Map<string, number>()
-
-    latestVotes.forEach((vote) => {
-      const count = voteCounts.get(vote.vote) || 0
-      voteCounts.set(vote.vote, count + 1)
-    })
-
-    return Array.from(voteCounts.entries()).map(([vote, count]) => ({
-      vote,
-      count,
-      percentage: (count / latestVotes.length) * 100
-    }))
-  }
+  useEffect(() => {
+    const interval = setInterval(fetchVotes, 2000)
+    return () => clearInterval(interval)
+  }, [fetchVotes])
 
   return {
     votes,
-    getVotesByUser,
-    getLatestVotes,
-    getVoteSummary,
-    totalVotes: votes.length,
-    uniqueVoters: new Set(votes.map((v) => v.userId)).size
+    isLoading,
+    fetchVotes,
+    clearVotes
   }
 }
