@@ -1,8 +1,10 @@
 ;(function () {
-  // Store original WebSocket constructor
-  const OriginalWebSocket = window.WebSocket
+  const relevantMessages = ["VoteForPokerStorySuccess"]
 
-  // Create a message queue for communication with content script
+  const OriginalWebSocket = window.WebSocket
+  const originalAddEventListener = OriginalWebSocket.prototype.addEventListener
+  const originalSend = OriginalWebSocket.prototype.send
+
   const messageQueue = []
   const processQueue = () => {
     while (messageQueue.length > 0) {
@@ -11,80 +13,80 @@
     }
   }
 
-  // Override WebSocket constructor
-  window.WebSocket = function (url, protocols) {
-    const ws = new OriginalWebSocket(url, protocols)
-
-    // Only intercept Parabol WebSocket connections
-    if (url.includes("action.parabol.co")) {
-      console.log("🔍 Parabol WebSocket intercepted:", url)
-
-      // Store original methods
-      const originalSend = ws.send
-      const originalAddEventListener = ws.addEventListener
-      const originalRemoveEventListener = ws.removeEventListener
-
-      // Override send method to intercept outgoing messages
-      ws.send = function (data) {
-        const message = {
-          id: crypto.randomUUID(),
-          timestamp: Date.now(),
-          type: "outgoing",
-          data: typeof data === "string" ? data : "[Binary data]",
-          url: url
-        }
-
-        messageQueue.push(message)
-        processQueue()
-
-        console.log("📤 Outgoing WebSocket message:", message)
-        return originalSend.call(this, data)
+  OriginalWebSocket.prototype.send = function (data) {
+    if (this.url?.includes("action.parabol.co")) {
+      const message = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        type: "outgoing",
+        data: typeof data === "string" ? data : "[Binary data]",
+        url: this.url
       }
+      console.log("📤 Outgoing WS message:", message)
+    }
+    return originalSend.call(this, data)
+  }
 
-      // Override addEventListener to intercept incoming messages
-      ws.addEventListener = function (type, listener, options) {
-        if (type === "message") {
-          const wrappedListener = (event) => {
+  OriginalWebSocket.prototype.addEventListener = function (
+    type,
+    listener,
+    options
+  ) {
+    if (type === "message" && this.url?.includes("action.parabol.co")) {
+      const wrappedListener = (event) => {
+        if (
+          typeof event.data === "string" &&
+          event.data.includes('fieldName":"VoteForPokerStorySuccess')
+        ) {
+          const message = {
+            id: crypto.randomUUID(),
+            timestamp: Date.now(),
+            type: "incoming",
+            data: event.data,
+            url: this.url
+          }
+          messageQueue.push(message)
+          processQueue()
+          console.log("📥 Incoming WS message (prototype):", message)
+        }
+        return listener.call(this, event)
+      }
+      return originalAddEventListener.call(this, type, wrappedListener, options)
+    }
+    return originalAddEventListener.call(this, type, listener, options)
+  }
+
+  Object.defineProperty(OriginalWebSocket.prototype, "onmessage", {
+    set(value) {
+      if (this.url?.includes("action.parabol.co")) {
+        const wrappedHandler = (event) => {
+          if (
+            typeof event.data === "string" &&
+            relevantMessages.some((msg) => event.data.includes(msg))
+          ) {
             const message = {
               id: crypto.randomUUID(),
               timestamp: Date.now(),
               type: "incoming",
               data: event.data,
-              url: url
+              url: this.url
             }
-
             messageQueue.push(message)
             processQueue()
-
-            console.log("📥 Incoming WebSocket message:", message)
-            return listener.call(this, event)
+            console.log(
+              "📥 Incoming WS message (onmessage prototype):",
+              message
+            )
           }
-
-          return originalAddEventListener.call(
-            this,
-            type,
-            wrappedListener,
-            options
-          )
+          return value.call(this, event)
         }
-
-        return originalAddEventListener.call(this, type, listener, options)
+        this.addEventListener("message", wrappedHandler)
+      } else {
+        this.addEventListener("message", value)
       }
-
-      // Preserve removeEventListener
-      ws.removeEventListener = originalRemoveEventListener
-    }
-
-    return ws
-  }
-
-  // Copy static properties from original WebSocket
-  Object.setPrototypeOf(window.WebSocket, OriginalWebSocket)
-  Object.getOwnPropertyNames(OriginalWebSocket).forEach((prop) => {
-    if (prop !== "prototype" && prop !== "length" && prop !== "name") {
-      window.WebSocket[prop] = OriginalWebSocket[prop]
-    }
+    },
+    configurable: true
   })
 
-  console.log("🔧 WebSocket interceptor injected successfully")
+  console.log("🔧 Global WebSocket prototype patched successfully (filtered)")
 })()
