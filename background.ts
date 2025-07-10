@@ -1,6 +1,10 @@
 // Background script for Parabol Peaker
 // Handles intercepted WebSocket messages and provides storage
 
+import { Storage } from "@plasmohq/storage"
+
+const storage = new Storage()
+
 interface WebSocketMessage {
   id: string
   timestamp: number
@@ -44,11 +48,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Handle extension installation
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Parabol Peaker extension installed")
+  // Initialize default toggle state
+  storage.set("parabol-peaker-toggle", true)
 })
 
 // Handle tab updates to ensure content script is injected
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.url?.includes("parabol")) {
     console.log("Parabol tab detected, ensuring content script is active")
+  }
+})
+
+// Listen for storage changes and notify content scripts
+storage.watch({
+  "parabol-peaker-toggle": (c) => {
+    // Notify all Parabol tabs about the toggle change
+    chrome.tabs.query({ url: "*://*.parabol.co/*" }, (tabs) => {
+      tabs.forEach((tab) => {
+        if (tab.id) {
+          chrome.tabs
+            .sendMessage(tab.id, {
+              type: "TOGGLE_CHANGED",
+              enabled: c.newValue
+            })
+            .catch(() => {
+              // Ignore errors if content script is not ready
+            })
+        }
+      })
+    })
   }
 })
