@@ -7,7 +7,7 @@ interface HeaderProps {
 
 export const Header = ({ title, subtitle }: HeaderProps) => {
   return (
-    <Stack className="mb-6" direction="column" gap={2}>
+    <Stack className="mb-3" direction="column" gap={2}>
       <Typography
         variant="h5"
         component="h1"

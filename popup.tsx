@@ -132,7 +132,8 @@ function IndexPopup() {
               fontSize: "12px",
               fontWeight: 600,
               textTransform: "uppercase",
-              letterSpacing: "0.5px"
+              letterSpacing: "0.5px",
+              marginBottom: "10px"
             }}>
             Status
           </Typography>
@@ -153,7 +154,8 @@ function IndexPopup() {
               fontSize: "12px",
               fontWeight: 600,
               textTransform: "uppercase",
-              letterSpacing: "0.5px"
+              letterSpacing: "0.5px",
+              marginBottom: "10px"
             }}>
             Features
           </Typography>
@@ -186,7 +188,8 @@ function IndexPopup() {
                 fontSize: "12px",
                 fontWeight: 600,
                 textTransform: "uppercase",
-                letterSpacing: "0.5px"
+                letterSpacing: "0.5px",
+                marginBottom: "10px"
               }}>
               Statistics
             </Typography>
